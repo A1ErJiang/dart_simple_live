@@ -1,4 +1,4 @@
-name: 在线打包Windows版 (修正路径)
+name: 最终尝试-打包Windows版
 on:
   workflow_dispatch:
 
@@ -17,21 +17,29 @@ jobs:
       - name: 开启 Windows 支持
         run: flutter config --enable-windows-desktop
 
-      - name: 安装依赖
-        # 修正点：去掉了 working-directory，直接在根目录运行
+      # --- 步骤1：先处理核心库 (Core) ---
+      - name: 安装核心库依赖
+        working-directory: ./simple_live_core
         run: flutter pub get
 
-      - name: 生成代码文件 (尝试修复常见报错)
-        # 很多 Flutter 项目需要这一步生成辅助代码
+      # --- 步骤2：再处理 APP ---
+      - name: 安装 APP 依赖
+        working-directory: ./simple_live_app
+        run: flutter pub get
+
+      - name: 生成辅助代码 (解决Exit code 1的关键)
+        working-directory: ./simple_live_app
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: 开始打包 (Build exe)
+        working-directory: ./simple_live_app
         run: flutter build windows --release
 
+      # --- 步骤3：打包并上传 ---
       - name: 整理打包文件
-        # 修正点：路径改为从根目录下的 build 文件夹查找
+        # 进入构建好的目录，把文件压缩起来
         run: |
-          cd build/windows/runner/Release
+          cd simple_live_app/build/windows/runner/Release
           7z a ../../../../windows_app.zip .
 
       - name: 上传打包结果
