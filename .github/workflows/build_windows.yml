@@ -1,0 +1,40 @@
+name: 在线打包Windows版
+on:
+  workflow_dispatch: # 允许手动点击按钮开始
+
+jobs:
+  build:
+    runs-on: windows-latest # 借用一台 Windows 电脑
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Flutter 环境
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: 开启 Windows 支持
+        run: flutter config --enable-windows-desktop
+
+      - name: 安装依赖 (进入APP目录)
+        # 注意：这里假设 APP 代码在 simple_live_app 文件夹下
+        # 如果报错找不到 pubspec.yaml，可能需要调整这个目录
+        working-directory: ./simple_live_app
+        run: flutter pub get
+
+      - name: 开始打包 (Build exe)
+        working-directory: ./simple_live_app
+        run: flutter build windows --release
+
+      - name: 整理打包文件
+        # 把散落在 Release 文件夹里的文件打包准备上传
+        run: |
+          cd simple_live_app/build/windows/runner/Release
+          7z a ../../../../windows_app.zip .
+
+      - name: 上传打包结果
+        uses: actions/upload-artifact@v4
+        with:
+          name: SimpleLive-Windows-App
+          path: windows_app.zip
