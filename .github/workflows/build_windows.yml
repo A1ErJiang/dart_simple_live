@@ -1,4 +1,4 @@
-name: 最终尝试-打包Windows版
+name: 最终通关-打包Windows版
 on:
   workflow_dispatch:
 
@@ -17,17 +17,15 @@ jobs:
       - name: 开启 Windows 支持
         run: flutter config --enable-windows-desktop
 
-      # --- 步骤1：先处理核心库 (Core) ---
       - name: 安装核心库依赖
         working-directory: ./simple_live_core
         run: flutter pub get
 
-      # --- 步骤2：再处理 APP ---
       - name: 安装 APP 依赖
         working-directory: ./simple_live_app
         run: flutter pub get
 
-      - name: 生成辅助代码 (解决Exit code 1的关键)
+      - name: 生成辅助代码
         working-directory: ./simple_live_app
         run: dart run build_runner build --delete-conflicting-outputs
 
@@ -35,12 +33,22 @@ jobs:
         working-directory: ./simple_live_app
         run: flutter build windows --release
 
-      # --- 步骤3：打包并上传 ---
-      - name: 整理打包文件
-        # 进入构建好的目录，把文件压缩起来
+      # --- 修改点：使用自动搜索脚本打包 ---
+      - name: 自动搜索并打包
+        shell: pwsh
         run: |
-          cd simple_live_app/build/windows/runner/Release
-          7z a ../../../../windows_app.zip .
+          # 在 build 文件夹里寻找 .exe 文件
+          $exePath = Get-ChildItem -Path "simple_live_app/build/windows" -Filter "*.exe" -Recurse | Where-Object { $_.DirectoryName -like "*Release*" } | Select-Object -First 1
+          
+          if ($exePath) {
+              Write-Host "找到程序文件: $($exePath.FullName)"
+              # 进入该文件所在的目录
+              Set-Location $exePath.DirectoryName
+              # 打包当前目录下的所有文件到根目录的 windows_app.zip
+              7z a "$env:GITHUB_WORKSPACE/windows_app.zip" .
+          } else {
+              Write-Error "错误：在构建目录中找不到 .exe 文件！"
+          }
 
       - name: 上传打包结果
         uses: actions/upload-artifact@v4
