@@ -1,4 +1,4 @@
-name: 最终尝试-打包Android版
+name: 最终决战-打包Android版
 on:
   workflow_dispatch:
 
@@ -28,16 +28,27 @@ jobs:
         working-directory: ./simple_live_app
         run: flutter pub get
 
+      # --- 新增步骤：伪造签名配置文件 ---
+      # 这一步是为了防止 build.gradle 因为找不到文件而报错
+      - name: 伪造签名配置 (骗过编译器)
+        run: |
+          cd simple_live_app/android
+          echo "storePassword=123456" > key.properties
+          echo "keyPassword=123456" >> key.properties
+          echo "keyAlias=key" >> key.properties
+          echo "storeFile=../app/key.jks" >> key.properties
+          # 创建一个空的假的 key.jks 文件，防止它检查文件是否存在
+          touch app/key.jks
+
       - name: 生成辅助代码
         working-directory: ./simple_live_app
         run: dart run build_runner build --delete-conflicting-outputs
 
-      # --- 修改点1：改用 Debug 模式打包，跳过签名检查 ---
+      # --- 依然使用 Debug 模式 ---
       - name: 打包 APK (Debug模式)
         working-directory: ./simple_live_app
         run: flutter build apk --debug
 
-      # --- 修改点2：文件名变了，路径也要变 ---
       - name: 上传打包结果
         uses: actions/upload-artifact@v4
         with:
